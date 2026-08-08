@@ -61,7 +61,7 @@ entirely. Use it from the cron prompt as a mandatory step.
 text_to_speech". The agent decided there was nothing new and skipped TTS.
 
 **Fix:** Make the cron prompt a mechanical checklist with file handoffs and
-verification gates ("confirm output says ✅ 語音生成成功"), and make the final
+verification gates ("confirm output says voice generated OK"), and make the final
 response `[SILENT]` so Hermes doesn't double-deliver the text.
 
 ## 5. Verifying audio content objectively

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-Telegram 直投腳本 — 直接調用 Telegram Bot API 發送文字 + 語音。
-繞過 Hermes cron MEDIA 投遞機制，用於每日 AI 趨勢摘要的文字+語音推送。
+Telegram direct delivery script - sends text + voice messages via the
+Telegram Bot API directly.
 
-用法:
-  python3 telegram_deliver.py --text "摘要文字" [--audio /path/to/audio.mp3] [--chat 8365377574]
+Bypasses Hermes cron MEDIA delivery (which may silently drop audio) to
+guarantee reliable text + voice delivery for daily AI trend briefings.
+
+Usage:
+  python3 telegram_deliver.py --text "summary text" [--audio /path/to/audio.mp3 ...] [--chat 8365377574]
 """
 import argparse
 import os
@@ -20,8 +23,8 @@ DEFAULT_CHAT = "8365377574"
 
 
 def get_token():
-    """讀取 Telegram bot token：優先 .env 的 TELEGRAM_BOT_TOKEN，其次 config.yaml。"""
-    # 1. .env 文件（真實 token 存這裡）
+    """Read the Telegram bot token: prefer .env TELEGRAM_BOT_TOKEN, then config.yaml."""
+    # 1. .env file (real token lives here)
     try:
         with open(ENV_PATH) as f:
             for line in f:
@@ -32,11 +35,11 @@ def get_token():
                         return token
     except Exception:
         pass
-    # 2. 環境變量
+    # 2. Environment variable
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if token and "***" not in token:
         return token
-    # 3. config.yaml（可能被遮蔽，僅作 fallback）
+    # 3. config.yaml (may be masked; fallback only)
     try:
         import yaml
         with open(CONFIG_PATH) as f:
@@ -50,7 +53,7 @@ def get_token():
 
 
 def api_call(token, method, data=None, files=None):
-    """調用 Telegram Bot API。files: {field: (filename, fileobj)}"""
+    """Call the Telegram Bot API. files: {field: (filename, fileobj)}"""
     url = f"https://api.telegram.org/bot{token}/{method}"
     if files:
         boundary = "----WebKitFormBoundary" + str(time.time()).replace(".", "")
@@ -75,8 +78,7 @@ def api_call(token, method, data=None, files=None):
 
 
 def send_text(token, chat_id, text):
-    """發送文字訊息。"""
-    # 分段（Telegram 限制 4096）
+    """Send a text message (chunked to fit Telegram's 4096 limit)."""
     max_len = 4000
     for i in range(0, len(text), max_len):
         chunk = text[i:i + max_len]
@@ -85,45 +87,43 @@ def send_text(token, chat_id, text):
             "text": chunk,
         })
         if not result.get("ok"):
-            print(f"❌ 文字發送失敗: {result.get('error', result)}")
+            print(f"ERROR: text send failed: {result.get('error', result)}")
             return False
         time.sleep(0.3)
     return True
 
 
 def send_voice(token, chat_id, audio_path):
-    """發送語音訊息。"""
+    """Send a voice message. Falls back to sendAudio if sendVoice fails."""
     if not os.path.exists(audio_path):
-        print(f"❌ 音頻文件不存在: {audio_path}")
+        print(f"ERROR: audio file not found: {audio_path}")
         return False
-    ext = os.path.splitext(audio_path)[1].lower()
     with open(audio_path, "rb") as f:
         result = api_call(token, "sendVoice", {"chat_id": chat_id}, files={"voice": (os.path.basename(audio_path), f)})
     if not result.get("ok"):
-        # 若 sendVoice 失敗（如格式不支持），退回 sendAudio
-        print(f"⚠️ sendVoice 失敗: {result.get('error')}，嘗試 sendAudio...")
+        print(f"WARNING: sendVoice failed ({result.get('error')}), trying sendAudio...")
         with open(audio_path, "rb") as f:
             result = api_call(token, "sendAudio", {"chat_id": chat_id}, files={"audio": (os.path.basename(audio_path), f)})
     if result.get("ok"):
-        print(f"✅ 語音發送成功: {audio_path}")
+        print(f"OK: voice sent: {audio_path}")
         return True
-    print(f"❌ 語音發送失敗: {result.get('error', result)}")
+    print(f"ERROR: voice send failed: {result.get('error', result)}")
     return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Telegram 文字+語音直投（支持多條語音）")
-    parser.add_argument("--text", default="", help="要發送的文字內容（可空，只發語音時留空）")
-    parser.add_argument("--audio", action="append", default=[], help="音頻文件路徑（可多次，發送多條）")
+    parser = argparse.ArgumentParser(description="Telegram text + voice delivery (multiple voices supported)")
+    parser.add_argument("--text", default="", help="text content to send (may be empty if only sending voice)")
+    parser.add_argument("--audio", action="append", default=[], help="audio file path (repeatable, sends multiple)")
     parser.add_argument("--chat", default=DEFAULT_CHAT, help="chat_id")
     args = parser.parse_args()
 
     token = get_token()
     if not token:
-        print("❌ 無法獲取 Telegram bot token（config.yaml 或 TELEGRAM_BOT_TOKEN）")
+        print("ERROR: cannot get Telegram bot token (.env TELEGRAM_BOT_TOKEN or config.yaml)")
         sys.exit(1)
     if not args.text and not args.audio:
-        print("❌ --text 和 --audio 至少需要一個")
+        print("ERROR: at least one of --text / --audio is required")
         sys.exit(1)
 
     ok_text = True

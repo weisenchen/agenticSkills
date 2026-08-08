@@ -2,11 +2,14 @@
 
 A collection of agent skills (Claude Code / Hermes compatible) for AI-powered workflows.
 
+All skill code and documentation are in **English** (Chinese appears only in
+content examples, e.g. sample broadcast scripts, since the briefing itself is bilingual).
+
 ## Skills
 
 ### [ai-daily-briefing](skills/ai-daily-briefing/)
 
-Daily bilingual (中文 + English) AI trends briefing — combines top AI builders'
+Daily bilingual (Chinese + English) AI trends briefing — combines top AI builders'
 tweets (free central feed, no API keys) with RSS articles into:
 
 - **Bilingual text summary** (Chinese + English)
@@ -23,5 +26,6 @@ agenticSkills/
 └── skills/
     └── <skill-name>/
         ├── SKILL.md          # Skill definition (YAML frontmatter + instructions)
+        ├── references/       # Optional reference docs
         └── scripts/          # Executable helpers
 ```
